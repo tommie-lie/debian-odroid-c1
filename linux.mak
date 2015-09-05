@@ -38,8 +38,7 @@ $(BOOT_DIR): $(UIMAGE_BIN) $(MESON8B_ODROIDC_DTB_BIN)
 	mv "$@.tmp" $@
 	touch $@
 
-$(UIMAGE_BIN): $(LINUX_TC_DIR) $(LINUX_SRC)
-	$(MAKE) -C $(LINUX_SRC) odroidc_defconfig
+$(UIMAGE_BIN): $(LINUX_TC_DIR) $(LINUX_SRC) $(LINUX_SRC)/.config
 	$(MAKE) -C $(LINUX_SRC) uImage
 	$(MAKE) -C $(LINUX_SRC) dtbs
 	touch $@
@@ -54,5 +53,8 @@ $(MODS_DIR): $(UIMAGE_BIN)
 	touch $@
 
 $(LINUX_SRC):
-	git clone --depth=1 $(LINUX_REPO) -b $(LINUX_BRANCH)
+	git clone --depth=1 $(LINUX_REPO) -b $(LINUX_BRANCH) $(LINUX_SRC)
+
+$(LINUX_SRC)/.config: | $(LINUX_SRC)
+	$(MAKE) -C $(LINUX_SRC) odroidc_defconfig
 
