@@ -3,44 +3,27 @@ include common.mk
 export ARCH := arm
 export CROSS_COMPILE := $(LINUX_TC_PREFIX)
 
-UIMAGE_BIN := $(LINUX_SRC)/arch/arm/boot/uImage
-
 .PHONY: all
 all: build
 
 .PHONY: clean
 clean:
 	if test -d "$(LINUX_SRC)"; then $(MAKE) -C $(LINUX_SRC) clean ; fi
-	rm -rf $(wildcard $(BOOT_DIR) $(BOOT_DIR).tmp $(MODS_DIR) $(MODS_DIR).tmp)
+	rm -f linux-deb-pkg
+	rm -f linux-image*_armhf.deb
+	rm -f linux-firmware-image*_armhf.deb
+	rm -f linux-headers*_armhf.deb
+	rm -f linux-libc-dev*_armhf.deb
 
 .PHONY: distclean
 distclean:
-	rm -rf $(wildcard $(LINUX_SRC) $(BOOT_DIR) $(MODS_DIR) $(MODS_DIR).tmp)
+	rm -rf $(wildcard $(LINUX_SRC))
 
 .PHONY: build
-build: $(BOOT_DIR) $(MODS_DIR)
+build: linux-deb-pkg
 
-$(BOOT_DIR): $(UIMAGE_BIN) $(MESON8B_ODROIDC_DTB_BIN)
-	if test -d "$@.tmp"; then rm -rf "$@.tmp" ; fi
-	if test -d "$@"; then rm -rf "$@" ; fi
-	mkdir -p "$@.tmp"
-	cp -p $(LINUX_SRC)/arch/arm/boot/uImage "$@.tmp"
-	cp -p $(LINUX_SRC)/arch/arm/boot/dts/meson8b_odroidc.dtb "$@.tmp"
-	mv "$@.tmp" $@
-	touch $@
-
-$(UIMAGE_BIN): $(LINUX_SRC) $(LINUX_SRC)/.config
-	$(MAKE) -C $(LINUX_SRC) uImage
-	$(MAKE) -C $(LINUX_SRC) dtbs
-	touch $@
-
-$(MODS_DIR): $(UIMAGE_BIN)
-	if test -d "$@.tmp"; then rm -rf "$@.tmp" ; fi
-	if test -d "$@"; then rm -rf "$@" ; fi
-	mkdir -p "$@.tmp"
-	$(MAKE) -C $(LINUX_SRC) modules
-	$(MAKE) -C $(LINUX_SRC) INSTALL_MOD_PATH=$(abspath $(MODS_DIR).tmp) modules_install
-	mv "$@.tmp" $@
+linux-deb-pkg: $(LINUX_SRC) $(LINUX_SRC)/.config
+	$(MAKE) -C $(LINUX_SRC) KBUILD_DEBARCH=armhf deb-pkg
 	touch $@
 
 $(LINUX_SRC):
