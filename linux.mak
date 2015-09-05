@@ -2,7 +2,6 @@ include common.mk
 
 export ARCH := arm
 export CROSS_COMPILE := $(LINUX_TC_PREFIX)
-export PATH := $(shell pwd)/$(LINUX_TC_PATH):$(PATH)
 
 UIMAGE_BIN := $(LINUX_SRC)/arch/arm/boot/uImage
 
@@ -16,15 +15,7 @@ clean:
 
 .PHONY: distclean
 distclean:
-	rm -rf $(wildcard $(LINUX_TC_DIR) $(LINUX_SRC) $(BOOT_DIR) $(MODS_DIR) $(MODS_DIR).tmp)
-
-$(LINUX_TC_DIR): $(LINUX_TOOLCHAIN)
-	mkdir -p $@
-	tar xf $(LINUX_TOOLCHAIN) --strip-components=1 -C $@
-
-$(LINUX_TOOLCHAIN):
-	wget -O $@ $(LINUX_TOOLCHAIN_URL)
-	touch $@
+	rm -rf $(wildcard $(LINUX_SRC) $(BOOT_DIR) $(MODS_DIR) $(MODS_DIR).tmp)
 
 .PHONY: build
 build: $(BOOT_DIR) $(MODS_DIR)
@@ -38,7 +29,7 @@ $(BOOT_DIR): $(UIMAGE_BIN) $(MESON8B_ODROIDC_DTB_BIN)
 	mv "$@.tmp" $@
 	touch $@
 
-$(UIMAGE_BIN): $(LINUX_TC_DIR) $(LINUX_SRC) $(LINUX_SRC)/.config
+$(UIMAGE_BIN): $(LINUX_SRC) $(LINUX_SRC)/.config
 	$(MAKE) -C $(LINUX_SRC) uImage
 	$(MAKE) -C $(LINUX_SRC) dtbs
 	touch $@
