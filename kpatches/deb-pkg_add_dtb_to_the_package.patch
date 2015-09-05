@@ -1,0 +1,35 @@
+When building a package with make deb-pkg (say, for arm), the dtb files are
+not added to the package. Given that things are still evolving on arm, it
+make sense to have them along with the kernel and modules.
+
+v4: Use $KCONFIG_CONFIG
+v3: handle with OF but without dtbs_install.
+    Use $MAKE ... as done everywhere else in the script
+v2: make use of dtbs_install
+
+Signed-off-by: Arnaud Patard <arnaud.patard@xxxxxxxxxxx>
+
+
+Modified for debian-odroid-c1 build script:
+Add comment after "fi" to make the pattern unambiguous and
+avoid applying the patch more than once.
+
+
+Index: linux-src/scripts/package/builddeb
+===================================================================
+--- linux-src.orig/scripts/package/builddeb
++++ linux-src/scripts/package/builddeb
+@@ -120,6 +120,13 @@ else
+ 	fi
+ fi
+ 
++if grep -q "^CONFIG_OF=y" $KCONFIG_CONFIG ; then
++	# Only some architectures with OF support have this target
++	if grep -q dtbs_install "${srctree}/arch/$SRCARCH/Makefile"; then
++		$MAKE KBUILD_SRC= INSTALL_DTBS_PATH="$tmpdir/usr/lib/$packagename" dtbs_install
++	fi
++fi # grep -q "^CONFIG_OF=y" $KCONFIG_CONFIG
++
+ if grep -q '^CONFIG_MODULES=y' .config ; then
+ 	INSTALL_MOD_PATH="$tmpdir" $MAKE KBUILD_SRC= modules_install
+ 	rm -f "$tmpdir/lib/modules/$version/build"

@@ -1,0 +1,20 @@
+Emulate the behaviour of dtbs_install target in scripts/packages/builddeb.
+
+The existing patch to include dtbs in the kernel package was backported from a
+more recent version of the kernel tree. Odroid C1 currently only runs on Linux 3.10
+which lacks the dtbs_install target, hence the dtbs would still be not included.
+
+Index: linux-src/scripts/package/builddeb
+===================================================================
+--- linux-src.orig/scripts/package/builddeb
++++ linux-src/scripts/package/builddeb
+@@ -124,6 +124,9 @@ if grep -q "^CONFIG_OF=y" $KCONFIG_CONFI
+ 	# Only some architectures with OF support have this target
+ 	if grep -q dtbs_install "${srctree}/arch/$SRCARCH/Makefile"; then
+ 		$MAKE KBUILD_SRC= INSTALL_DTBS_PATH="$tmpdir/usr/lib/$packagename" dtbs_install
++	else
++	    mkdir -p "$tmpdir/usr/lib/$packagename"
++        find arch/$ARCH -name *.dtb -exec cp {} "$tmpdir/usr/lib/$packagename" \;
+ 	fi
+ fi # grep -q "^CONFIG_OF=y" $KCONFIG_CONFIG
+ 

@@ -1,0 +1,2 @@
+deb-pkg_add_dtb_to_the_package.patch
+deb-pkg_feign_dtbs_install_for_old_kernel.patch
