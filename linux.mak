@@ -28,6 +28,8 @@ linux-deb-pkg: $(LINUX_SRC) $(LINUX_SRC)/.config
 
 $(LINUX_SRC):
 	git clone --depth=1 $(LINUX_REPO) -b $(LINUX_BRANCH) $(LINUX_SRC)
+	cd $(LINUX_SRC) ; \
+	QUILT_PATCHES=../kpatches quilt push -a ; [ $$? -eq 0 -o $$? -eq 2 ]
 
 $(LINUX_SRC)/.config: | $(LINUX_SRC)
 	$(MAKE) -C $(LINUX_SRC) odroidc_defconfig
