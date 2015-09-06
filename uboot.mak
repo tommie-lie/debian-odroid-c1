@@ -1,6 +1,5 @@
 include common.mk
 
-export PATH := $(shell pwd)/$(UBOOT_TC_PATH):$(PATH)
 
 UBOOT_BIN := $(UBOOT_SRC)/sd_fuse/uboot.bin
 
@@ -13,21 +12,12 @@ clean:
 
 .PHONY: distclean
 distclean:
-	rm -rf $(wildcard $(UBOOT_TC_DIR) $(UBOOT_SRC))
-
-$(UBOOT_TC_DIR): $(UBOOT_TOOLCHAIN)
-	mkdir -p $@
-	tar xJf $(UBOOT_TOOLCHAIN) -C $@
-	touch $@
-
-$(UBOOT_TOOLCHAIN):
-	wget -O $@ $(UBOOT_TOOLCHAIN_URL)
-	touch $@
+	rm -rf $(UBOOT_SRC)
 
 .PHONY: build
 build: $(UBOOT_BIN)
 
-$(UBOOT_BIN): $(UBOOT_TC_DIR) $(UBOOT_SRC)
+$(UBOOT_BIN): $(UBOOT_SRC)
 	$(MAKE) -C $(UBOOT_SRC) odroidc_config
 	$(MAKE) -C $(UBOOT_SRC)
 	touch $@

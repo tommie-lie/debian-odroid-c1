@@ -18,10 +18,6 @@ ROOTFS_DIR := rootfs
 RAMDISK_FILE := uInitrd
 IMAGE_FILE := sdcard-$(DIST).img
 
-UBOOT_TOOLCHAIN := gcc-linaro-arm-none-eabi-4.8-2014.04_linux.tar.xz
-UBOOT_TOOLCHAIN_URL := http://releases.linaro.org/14.04/components/toolchain/binaries/$(UBOOT_TOOLCHAIN)
-UBOOT_TC_DIR := uboot_tc
-UBOOT_TC_PATH := $(UBOOT_TC_DIR)/gcc-linaro-arm-none-eabi-4.8-2014.04_linux/bin
 UBOOT_REPO := https://github.com/hardkernel/u-boot.git
 UBOOT_BRANCH := odroidc-v2011.03
 UBOOT_SRC := u-boot
