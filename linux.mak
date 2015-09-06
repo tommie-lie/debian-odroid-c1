@@ -3,28 +3,42 @@ include common.mk
 export ARCH := arm
 export CROSS_COMPILE := $(LINUX_TC_PREFIX)
 
+KERNEL_VERSION = $(shell $(MAKE) -C $(LINUX_SRC) --no-print-directory kernelversion || echo "")
+
+KDEB_PKGVERSION = $(KERNEL_VERSION)-1
+
+define PACKAGES
+$(strip \
+$(eval _a := $(KERNEL_VERSION))     \
+$(eval _b := $(KDEB_PKGVERSION))    \
+linux-image-$(_a)_$(_b)_armhf.deb     \
+linux-headers-$(_a)_$(_b)_armhf.deb   \
+linux-firmware-image_$(_b)_armhf.deb  \
+linux-libc-dev_$(_b)_armhf.deb)
+endef
+
 .PHONY: all
 all: build
 
 .PHONY: clean
 clean:
-	if test -d "$(LINUX_SRC)"; then $(MAKE) -C $(LINUX_SRC) clean ; fi
-	rm -f linux-deb-pkg
-	rm -f linux-image*_armhf.deb
-	rm -f linux-firmware-image*_armhf.deb
-	rm -f linux-headers*_armhf.deb
-	rm -f linux-libc-dev*_armhf.deb
+	[ -d "$(LINUX_SRC)" ] && $(MAKE) -C $(LINUX_SRC) clean
+	rm -f linux-imag-*_armhf.deb
+	rm -f linux-headers-*_armhf.deb
+	rm -f linux-firmware-image_*_armhf.deb
+	rm -f linux-libc-dev_*_armhf.deb
 
 .PHONY: distclean
 distclean:
-	rm -rf $(wildcard $(LINUX_SRC))
+	rm -rf $(LINUX_SRC)
 
 .PHONY: build
-build: linux-deb-pkg
+build: $(LINUX_SRC)
+	$(MAKE) -f linux.mak $(call PACKAGES)
 
-linux-deb-pkg: $(LINUX_SRC) $(LINUX_SRC)/.config
+.PHONY: $(subst .deb,%deb,$(call PACKAGES))
+$(subst .deb,%deb,$(call PACKAGES)): $(LINUX_SRC) $(LINUX_SRC)/.config
 	$(MAKE) -C $(LINUX_SRC) KBUILD_DEBARCH=armhf deb-pkg
-	touch $@
 
 $(LINUX_SRC):
 	git clone --depth=1 $(LINUX_REPO) -b $(LINUX_BRANCH) $(LINUX_SRC)
