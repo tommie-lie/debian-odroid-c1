@@ -26,9 +26,10 @@ build: $(IMAGE_FILE)
 $(ROOTFS_DIR).base/.stamp:
 	rm -rf "$(@D)"
 	mkdir -p $(@D)
-	debootstrap --foreign --no-check-gpg --include=ca-certificates,ssh,vim,locales,ntpdate,usbmount,initramfs-tools --arch=$(DEBIAN_ARCH) $(DEBIAN_SUITE) $(@D) $(DEBIAN_MIRROR)
+	debootstrap --foreign --no-check-gpg --include=ca-certificates,ssh,vim,locales,ntpdate,usbmount,initramfs-tools,debian-archive-keyring --arch=$(DEBIAN_ARCH) $(DEBIAN_SUITE) $(@D) $(DEBIAN_MIRROR)
 	cp $$(which qemu-arm-static) $(@D)/usr/bin
 	chroot $(@D) /debootstrap/debootstrap --second-stage
+	chroot $(@D) apt-get update
 	touch $@
 
 $(ROOTFS_DIR): $(ROOTFS_DIR).base/.stamp
