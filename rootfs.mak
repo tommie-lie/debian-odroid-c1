@@ -36,10 +36,7 @@ $(ROOTFS_DIR).base/.stamp:
 .PHONY: $(ROOTFS_DIR)
 $(ROOTFS_DIR): $(ROOTFS_DIR).base/.stamp
 	cp -a $(ROOTFS_DIR).base -T $@
-	cp linux-*_armhf.deb $@/tmp
-	chroot $@ apt-get install --yes flash-kernel
 	cd files/common && find . -type f ! -name '*~' -exec cp --preserve=mode,timestamps --parents \{\} ../../$@ \;
-	chroot $@ /bin/bash -c "dpkg -i /tmp/linux-*_armhf.deb"
 	[ -d files/$(DIST) ] && then cd files/$(DIST) && mkdir -p ../../$@/$(DIST) && find . -type f ! -name '*~' -exec cp --preserve=mode,timestamps --parents \{\} ../../$@ \;
 	mount -o bind /proc $@/proc
 	mount -o bind /sys $@/sys
@@ -57,10 +54,19 @@ $(ROOTFS_DIR): $(ROOTFS_DIR).base/.stamp
 	rm $@/usr/bin/qemu-arm-static
 	touch $@
 
+.PHONY: kernel-install
+kernel-install: $(ROOTFS_DIR)
+	cp linux-*_armhf.deb $(ROOTFS_DIR)/tmp
+	mkdir -p $(ROOTFS_DIR)/boot/u-boot
+	chroot $(ROOTFS_DIR) apt-get install --yes flash-kernel
+	cp --preserve=mode,timestamps files/common/etc/flash-kernel/machine $(ROOTFS_DIR)/etc/flash-kernel/machine
+	cp --preserve=mode,timestamps files/common/etc/flash-kernel/db $(ROOTFS_DIR)/etc/flash-kernel/db
+	chroot $(ROOTFS_DIR) /bin/bash -c "dpkg -i /tmp/linux-*_armhf.deb"
+	
 $(RAMDISK_FILE): $(ROOTFS_DIR)
 	mkimage -A arm -O linux -T ramdisk -C none -a 0 -e 0 -n uInitrd -d $(ROOTFS_DIR)/boot/initrd.img-* uInitrd
 
-$(IMAGE_FILE): $(ROOTFS_DIR) $(RAMDISK_FILE)
+$(IMAGE_FILE): $(ROOTFS_DIR) kernel-install $(RAMDISK_FILE)
 	if test -f "$@.tmp"; then rm "$@.tmp" ; fi
 	./createimg $@.tmp $(BOOT_MB) $(ROOT_MB) $(BOOT_DIR) $(ROOTFS_DIR) $(UBOOT_BIN_DIR) $(RAMDISK_FILE) "$(ROOT_DEV)"
 	mv $@.tmp $@
