@@ -1,21 +1,15 @@
-include common.mk
-
-
 UBOOT_BIN := $(UBOOT_SRC)/sd_fuse/uboot.bin
 
-.PHONY: all
-all: build
-
-.PHONY: clean
-clean:
+.PHONY: uboot-clean
+uboot-clean:
 	if test -d "$(UBOOT_SRC)"; then $(MAKE) -C $(UBOOT_SRC) clean ; fi
 
-.PHONY: distclean
-distclean:
+.PHONY: uboot-distclean
+uboot-distclean:
 	rm -rf $(UBOOT_SRC)
 
-.PHONY: build
-build: $(UBOOT_BIN)
+.PHONY: uboot-build
+uboot-build: $(UBOOT_BIN)
 
 $(UBOOT_BIN): $(UBOOT_SRC)
 	$(MAKE) -C $(UBOOT_SRC) odroidc_config

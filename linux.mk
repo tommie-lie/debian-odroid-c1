@@ -1,9 +1,7 @@
-include common.mk
-
 export ARCH := arm
 export CROSS_COMPILE := $(LINUX_TC_PREFIX)
 
-KERNEL_VERSION = $(shell $(MAKE) -C $(LINUX_SRC) --no-print-directory kernelversion || echo "")
+KERNEL_VERSION = $(shell MAKEFLAGS= MFLAGS= $(MAKE) -C $(LINUX_SRC) --no-print-directory kernelversion)
 
 KDEB_PKGVERSION = $(KERNEL_VERSION)-1
 
@@ -17,24 +15,22 @@ linux-firmware-image_$(_b)_armhf.deb  \
 linux-libc-dev_$(_b)_armhf.deb)
 endef
 
-.PHONY: all
-all: build
 
-.PHONY: clean
-clean:
+.PHONY: linux-clean
+linux-clean:
 	[ -d "$(LINUX_SRC)" ] && $(MAKE) -C $(LINUX_SRC) clean
 	rm -f linux-imag-*_armhf.deb
 	rm -f linux-headers-*_armhf.deb
 	rm -f linux-firmware-image_*_armhf.deb
 	rm -f linux-libc-dev_*_armhf.deb
 
-.PHONY: distclean
-distclean:
+.PHONY: linux-distclean
+linux-distclean:
 	rm -rf $(LINUX_SRC)
 
-.PHONY: build
-build: $(LINUX_SRC)
-	$(MAKE) -f linux.mak $(call PACKAGES)
+.PHONY: linux-build
+linux-build: $(LINUX_SRC)
+	$(MAKE) $(call PACKAGES)
 
 .PHONY: $(subst .deb,%deb,$(call PACKAGES))
 $(subst .deb,%deb,$(call PACKAGES)): $(LINUX_SRC) $(LINUX_SRC)/.config

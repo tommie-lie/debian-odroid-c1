@@ -9,6 +9,16 @@
 #    sudo apt-get update
 #    sudo apt-get install libc6:i386 libncurses5:i386 libstdc++6:i386 lib32z1
 #
+
+.DEFAULT_GOAL: all
+
+include common.mk
+include uboot.mk
+include linux.mk
+include rootfs.mk
+
+
+
 .PHONY: all
 all: build
 
@@ -23,12 +33,12 @@ linux-pr:
 # Build step rule template
 define BUILDSTEP_TEMPLATE
 .PHONY: build-$(1) clean-$(1) distclean-$(1) $$($(1)-pr)
-build-$(1): $(1)-pr
-	$$(MAKE) -f $(1).mak build
-clean-$(1):
-	$$(MAKE) -f $(1).mak clean
-distclean-$(1):
-	$$(MAKE) -f $(1).mak distclean
+build-$(1): $(1)-pr $(1)-build
+
+clean-$(1): $(1)-clean
+
+distclean-$(1): $(1)-distclean
+
 endef
 
 $(foreach step,$(BUILD_STEPS),$(eval $(call BUILDSTEP_TEMPLATE,$(step))))

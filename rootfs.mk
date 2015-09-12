@@ -1,16 +1,11 @@
-include common.mk
-
 UBOOT_BIN_DIR := $(UBOOT_SRC)/sd_fuse
 
-.PHONY: all
-all: build
-
 .PHONY: clean
-clean: delete-rootfs
+roots-clean: delete-rootfs
 	rm -rf $(wildcard $(IMAGE_FILE) $(IMAGE_FILE).tmp)
 
 .PHONY: distclean
-distclean: delete-rootfs
+rootfs-distclean: delete-rootfs
 	rm -rf $(wildcard $(ROOTFS_DIR).base $(ROOTFS_DIR).base.tmp)
 
 .PHONY: delete-rootfs
@@ -20,8 +15,8 @@ delete-rootfs:
 	if mountpoint -q $(ROOTFS_DIR)/dev ; then umount $(ROOTFS_DIR)/dev ; fi
 	rm -rf $(wildcard $(ROOTFS_DIR) uInitrd)
 	
-.PHONY: build
-build: $(IMAGE_FILE)
+.PHONY: rootfs-build
+rootfs-build: $(IMAGE_FILE)
 
 $(ROOTFS_DIR).base/.stamp:
 	rm -rf "$(@D)"
@@ -62,7 +57,7 @@ kernel-install: $(ROOTFS_DIR)
 	cp --preserve=mode,timestamps files/common/etc/flash-kernel/machine $(ROOTFS_DIR)/etc/flash-kernel/machine
 	cp --preserve=mode,timestamps files/common/etc/flash-kernel/db $(ROOTFS_DIR)/etc/flash-kernel/db
 	chroot $(ROOTFS_DIR) /bin/bash -c "dpkg -i /tmp/linux-*_armhf.deb"
-	
+
 $(RAMDISK_FILE): $(ROOTFS_DIR)
 	mkimage -A arm -O linux -T ramdisk -C none -a 0 -e 0 -n uInitrd -d $(ROOTFS_DIR)/boot/initrd.img-* uInitrd
 
