@@ -23,19 +23,15 @@ delete-rootfs:
 .PHONY: build
 build: $(IMAGE_FILE)
 
-$(ROOTFS_DIR).base:
-	if test -d "$@.tmp"; then rm -rf "$@.tmp" ; fi
-	mkdir -p $@.tmp
-	debootstrap --foreign --no-check-gpg --include=ca-certificates,ssh,vim,locales,ntpdate,usbmount,initramfs-tools --arch=$(DIST_ARCH) $(DIST) $@.tmp $(DIST_URL)
-	cp `which qemu-arm-static` $@.tmp/usr/bin
-	chroot $@.tmp /bin/bash -c "/debootstrap/debootstrap --second-stage"
-	rm $@.tmp/etc/hostname
-	rm $@.tmp/etc/ssh/ssh_host_*
-	ln -s /proc/mounts $@.tmp/etc/mtab
-	mv $@.tmp $@
+$(ROOTFS_DIR).base/.stamp:
+	rm -rf "$(@D)"
+	mkdir -p $(@D)
+	debootstrap --foreign --no-check-gpg --include=ca-certificates,ssh,vim,locales,ntpdate,usbmount,initramfs-tools --arch=$(DEBIAN_ARCH) $(DEBIAN_SUITE) $(@D) $(DEBIAN_MIRROR)
+	cp $$(which qemu-arm-static) $(@D)/usr/bin
+	chroot $(@D) /debootstrap/debootstrap --second-stage
 	touch $@
 
-$(ROOTFS_DIR): $(ROOTFS_DIR).base
+$(ROOTFS_DIR): $(ROOTFS_DIR).base/.stamp
 	rsync --quiet --archive --devices --specials --hard-links --acls --xattrs --sparse $(ROOTFS_DIR).base/* $@
 	rsync --quiet --archive --devices --specials --hard-links --acls --xattrs --sparse $(MODS_DIR)/* $@
 	LINUX_VERSION="$(shell cat $(LINUX_SRC)/include/config/kernel.release)" && cd $@/lib/modules ; if [ ! -d "$$LINUX_VERSION" ] ; then ln -s "$$LINUX_VERSION*" "$$LINUX_VERSION" ; fi

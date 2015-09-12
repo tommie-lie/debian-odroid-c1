@@ -1,6 +1,6 @@
-DIST ?= jessie
-DIST_URL := http://http.debian.net/debian/
-DIST_ARCH := armhf
+DEBIAN_SUITE ?= jessie
+DEBIAN_MIRROR ?= http://http.debian.net/debian/
+DEBIAN_ARCH := armhf
 
 ifneq ($(findstring $(DIST),jessie stable),)
 # ROOT_DEV is needed for jessie, it will cause boot.ini to boot from /dev/mmcblk0p2 rather than from UUID.
@@ -16,7 +16,7 @@ BOOT_DIR := boot
 MODS_DIR := mods
 ROOTFS_DIR := rootfs
 RAMDISK_FILE := uInitrd
-IMAGE_FILE := sdcard-$(DIST).img
+IMAGE_FILE := sdcard-$(DEBIAN_SUITE).img
 
 UBOOT_REPO := https://github.com/hardkernel/u-boot.git
 UBOOT_BRANCH := odroidc-v2011.03
