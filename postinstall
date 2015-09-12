@@ -13,7 +13,6 @@ fi
 
 DIST=$1
 DIST_URL=$2
-KERNEL_VERSION=$3
 
 echo "Running postinstall script..."
 
@@ -33,9 +32,6 @@ echo "deb-src $DIST_URL $DIST main contrib non-free" >> /etc/apt/sources.list
 
 # Update apt
 apt-get update
-
-# Generate the initial ramfs
-update-initramfs -c -t -k $KERNEL_VERSION
 
 insserv usbmount-start
 insserv framebuffer-start

@@ -32,18 +32,21 @@ $(ROOTFS_DIR).base/.stamp:
 	chroot $(@D) apt-get update
 	touch $@
 
+# TODO: depend on existence of linux kernel packages
+.PHONY: $(ROOTFS_DIR)
 $(ROOTFS_DIR): $(ROOTFS_DIR).base/.stamp
-	rsync --quiet --archive --devices --specials --hard-links --acls --xattrs --sparse $(ROOTFS_DIR).base/* $@
-	rsync --quiet --archive --devices --specials --hard-links --acls --xattrs --sparse $(MODS_DIR)/* $@
-	LINUX_VERSION="$(shell cat $(LINUX_SRC)/include/config/kernel.release)" && cd $@/lib/modules ; if [ ! -d "$$LINUX_VERSION" ] ; then ln -s "$$LINUX_VERSION*" "$$LINUX_VERSION" ; fi
-	cd files/common ; find . -type f ! -name '*~' -exec cp --preserve=mode,timestamps --parents \{\} ../../$@ \;
-	if [ -d files/$(DIST) ]; then cd files/$(DIST) ; mkdir -p ../../$@/$(DIST); find . -type f ! -name '*~' -exec cp --preserve=mode,timestamps --parents \{\} ../../$@ \; ; fi
+	cp -a $(ROOTFS_DIR).base -T $@
+	cp linux-*_armhf.deb $@/tmp
+	chroot $@ apt-get install --yes flash-kernel
+	cd files/common && find . -type f ! -name '*~' -exec cp --preserve=mode,timestamps --parents \{\} ../../$@ \;
+	chroot $@ /bin/bash -c "dpkg -i /tmp/linux-*_armhf.deb"
+	[ -d files/$(DIST) ] && then cd files/$(DIST) && mkdir -p ../../$@/$(DIST) && find . -type f ! -name '*~' -exec cp --preserve=mode,timestamps --parents \{\} ../../$@ \;
 	mount -o bind /proc $@/proc
 	mount -o bind /sys $@/sys
 	mount -o bind /dev $@/dev
 	cp postinstall $@
 	if [ -d "postinst" ]; then cp -r postinst $@ ; fi
-	LINUX_VERSION="$(shell cat $(LINUX_SRC)/include/config/kernel.release)" && chroot $@ /bin/bash -c "/postinstall $(DIST) $(DIST_URL) $$LINUX_VERSION"
+	chroot $@ /bin/bash -c "/postinstall $(DIST) $(DIST_URL)"
 	for i in patches/*.patch ; do patch -p0 -d $@ < $$i ; done
 	if [ -d patches/$(DIST) ]; then for i in patches/$(DIST)/*.patch; do patch -p0 -d $@ < $$i ; done fi
 	umount $@/proc
