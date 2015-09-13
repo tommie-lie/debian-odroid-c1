@@ -27,7 +27,6 @@ $(ROOTFS_DIR).base/.stamp:
 	chroot $(@D) apt-get update
 	touch $@
 
-# TODO: depend on existence of linux kernel packages
 .PHONY: $(ROOTFS_DIR)
 $(ROOTFS_DIR): $(ROOTFS_DIR).base/.stamp
 	cp -a $(ROOTFS_DIR).base -T $@
@@ -50,13 +49,13 @@ $(ROOTFS_DIR): $(ROOTFS_DIR).base/.stamp
 	touch $@
 
 .PHONY: kernel-install
-kernel-install: $(ROOTFS_DIR)
-	cp linux-*_armhf.deb $(ROOTFS_DIR)/tmp
+kernel-install: $(ROOTFS_DIR) $(call PACKAGES)
+	cp $(call PACKAGES) $(ROOTFS_DIR)/tmp
 	mkdir -p $(ROOTFS_DIR)/boot/u-boot
 	chroot $(ROOTFS_DIR) apt-get install --yes flash-kernel
 	cp --preserve=mode,timestamps files/common/etc/flash-kernel/machine $(ROOTFS_DIR)/etc/flash-kernel/machine
 	cp --preserve=mode,timestamps files/common/etc/flash-kernel/db $(ROOTFS_DIR)/etc/flash-kernel/db
-	chroot $(ROOTFS_DIR) /bin/bash -c "dpkg -i /tmp/linux-*_armhf.deb"
+	chroot $(ROOTFS_DIR) /bin/bash -c "dpkg -i $(addprefix /tmp/,$(call PACKAGES))"
 
 $(RAMDISK_FILE): $(ROOTFS_DIR)
 	mkimage -A arm -O linux -T ramdisk -C none -a 0 -e 0 -n uInitrd -d $(ROOTFS_DIR)/boot/initrd.img-* uInitrd

@@ -32,8 +32,7 @@ linux-distclean:
 linux-build: $(LINUX_SRC)
 	$(MAKE) $(call PACKAGES)
 
-.PHONY: $(subst .deb,%deb,$(call PACKAGES))
-$(subst .deb,%deb,$(call PACKAGES)): $(LINUX_SRC) $(LINUX_SRC)/.config
+$(subst .deb,%deb,$(call PACKAGES)): $(LINUX_SRC)/Makefile $(LINUX_SRC)/.config
 	$(MAKE) -C $(LINUX_SRC) KBUILD_DEBARCH=armhf deb-pkg
 
 $(LINUX_SRC):
