@@ -1,3 +1,10 @@
+define newline
+
+
+endef
+declare = $1: export $2 := $(subst $(newline),\n,$(_$2))
+
+
 DEBIAN_SUITE ?= jessie
 DEBIAN_MIRROR ?= http://http.debian.net/debian/
 DEBIAN_ARCH := armhf

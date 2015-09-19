@@ -48,14 +48,39 @@ $(ROOTFS_DIR): $(ROOTFS_DIR).base/.stamp
 	#rm $@/usr/bin/qemu-arm-static
 	touch $@
 
+define _fk_db
+# To override fields include the Machine field and the fields you wish to
+# override.
+#
+# e.g. to override Boot-Device on the Dreamplug to sdb rather than sda
+#
+#Machine: Globalscale Technologies Dreamplug
+#Boot-Device: /dev/sdb1
+
+
+Machine: Hardkernel Odroid C1
+U-Boot-Kernel-Address: 0
+U-Boot-Initrd-Address: 0
+DTB-Id: meson8b_odroidc.dtb
+Boot-Kernel-Path: /boot/u-boot/uImage
+Boot-Initrd-Path: /boot/u-boot/uInitrd
+Boot-DTB-Path: /boot/u-boot/meson8b_odroidc.dtb
+endef
+$(call declare,kernel-install,_fk_db)
+
 .PHONY: kernel-install
 kernel-install: $(ROOTFS_DIR) $(call PACKAGES)
-	cp $(call PACKAGES) $(ROOTFS_DIR)/tmp
-	mkdir -p $(ROOTFS_DIR)/boot/u-boot
+	mount -o bind /dev $(ROOTFS_DIR)/dev
+	mount -o bind /dev $(ROOTFS_DIR)/proc
 	chroot $(ROOTFS_DIR) apt-get install --yes flash-kernel
-	cp --preserve=mode,timestamps files/common/etc/flash-kernel/machine $(ROOTFS_DIR)/etc/flash-kernel/machine
-	cp --preserve=mode,timestamps files/common/etc/flash-kernel/db $(ROOTFS_DIR)/etc/flash-kernel/db
-	chroot $(ROOTFS_DIR) /bin/bash -c "dpkg -i $(addprefix /tmp/,$(call PACKAGES))"
+	mkdir -p $(ROOTFS_DIR)/etc/flash-kernel
+	mkdir -p $(ROOTFS_DIR)/boot/u-boot
+	echo $$fk_db > $(ROOTFS_DIR)/etc/flash-kernel/db
+	echo "Hardkernel Odroid C1" > $(ROOTFS_DIR)/etc/flash-kernel/machine
+	cp $(call PACKAGES) $(ROOTFS_DIR)/tmp
+	chroot $(ROOTFS_DIR) dpkg -i $(addprefix /tmp/,$(call PACKAGES))
+	umount $(ROOTFS_DIR)/proc
+	umount $(ROOTFS_DIR)/dev
 
 $(RAMDISK_FILE): $(ROOTFS_DIR)
 	mkimage -A arm -O linux -T ramdisk -C none -a 0 -e 0 -n uInitrd -d $(ROOTFS_DIR)/boot/initrd.img-* uInitrd
