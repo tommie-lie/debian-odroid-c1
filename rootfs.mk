@@ -31,21 +31,21 @@ $(ROOTFS_DIR).base/.stamp:
 $(ROOTFS_DIR): $(ROOTFS_DIR).base/.stamp
 	cp -a $(ROOTFS_DIR).base -T $@
 	cd files/common && find . -type f ! -name '*~' -exec cp --preserve=mode,timestamps --parents \{\} ../../$@ \;
-	[ -d files/$(DIST) ] && then cd files/$(DIST) && mkdir -p ../../$@/$(DIST) && find . -type f ! -name '*~' -exec cp --preserve=mode,timestamps --parents \{\} ../../$@ \;
+	[ -d files/$(DEBIAN_SUITE) ] && cd files/$(DEBIAN_SUITE) && mkdir -p ../../$@/$(DEBIAN_SUITE) && find . -type f ! -name '*~' -exec cp --preserve=mode,timestamps --parents \{\} ../../$@ \;
 	mount -o bind /proc $@/proc
 	mount -o bind /sys $@/sys
 	mount -o bind /dev $@/dev
 	cp postinstall $@
 	if [ -d "postinst" ]; then cp -r postinst $@ ; fi
-	chroot $@ /bin/bash -c "/postinstall $(DIST) $(DIST_URL)"
+	chroot $@ /bin/bash -c "/postinstall $(DEBIAN_SUITE) $(DEBIAN_MIRROR)"
 	for i in patches/*.patch ; do patch -p0 -d $@ < $$i ; done
-	if [ -d patches/$(DIST) ]; then for i in patches/$(DIST)/*.patch; do patch -p0 -d $@ < $$i ; done fi
+	if [ -d patches/$(DEBIAN_SUITE) ]; then for i in patches/$(DEBIAN_SUITE)/*.patch; do patch -p0 -d $@ < $$i ; done fi
 	umount $@/proc
 	umount $@/sys
 	umount $@/dev
 	rm $@/postinstall
 	rm -rf $@/postinst/
-	rm $@/usr/bin/qemu-arm-static
+	#rm $@/usr/bin/qemu-arm-static
 	touch $@
 
 .PHONY: kernel-install
