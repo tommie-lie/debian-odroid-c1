@@ -41,7 +41,7 @@ distclean-$(1): $(1)-distclean
 
 endef
 
-$(foreach step,$(BUILD_STEPS),$(eval $(call BUILDSTEP_TEMPLATE,$(step))))
+#$(foreach step,$(BUILD_STEPS),$(eval $(call BUILDSTEP_TEMPLATE,$(step))))
 
 .PHONY: build
 build: $(addprefix build-,$(BUILD_STEPS))

@@ -11,6 +11,8 @@ declare = $1: export $2 := $(subst $(newline),\n,$(_$2))
 has_root:
 	$(if $(filter-out 0,$(shell id -u)), $(error This command has to be run as root))
 
+# empty target to act as a way to make pattern rules .PHONY
+FORCE: ;
 
 DEBIAN_SUITE ?= jessie
 DEBIAN_MIRROR ?= http://http.debian.net/debian/
@@ -39,7 +41,7 @@ UBOOT_SRC := u-boot
 LINUX_TC_PREFIX := arm-linux-gnueabihf-
 LINUX_REPO := https://github.com/hardkernel/linux.git
 LINUX_BRANCH := odroidc-3.10.y
-LINUX_SRC := linux
+LINUX_SRC := linux-src
 
 TIMEZONE ?= Etc/UTC
 LOCALES ?= en_US.UTF-8

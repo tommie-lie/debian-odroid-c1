@@ -1,74 +1,106 @@
 UBOOT_BIN_DIR := $(UBOOT_SRC)/sd_fuse
 
-.PHONY: clean
-roots-clean: delete-rootfs
-	rm -rf $(wildcard $(IMAGE_FILE) $(IMAGE_FILE).tmp)
+ADDITIONAL_PACKAGES := ssh,vim,ntpdate,usbmount
+CORE_PACKAGES := ca-certificates,initramfs-tools,flash-kernel,locales,sudo
 
-.PHONY: distclean
-rootfs-distclean: delete-rootfs has_root
-	rm -rf $(wildcard $(ROOTFS_DIR).base $(ROOTFS_DIR).base.tmp)
+# This rule works without the rootfs directory even existing
+.PHONY: clean-rootfs
+clean-rootfs: | has_root
+	if mountpoint -q rootfs/proc ; then umount rootfs/proc ; fi
+	if mountpoint -q rootfs/sys ; then umount rootfs/sys ; fi
+	if mountpoint -q rootfs/dev ; then umount rootfs/dev ; fi
+	rm -rf rootfs/*
 
-.PHONY: delete-rootfs
-delete-rootfs: has_root
-	if mountpoint -q $(ROOTFS_DIR)/proc ; then umount $(ROOTFS_DIR)/proc ; fi
-	if mountpoint -q $(ROOTFS_DIR)/sys ; then umount $(ROOTFS_DIR)/sys ; fi
-	if mountpoint -q $(ROOTFS_DIR)/dev ; then umount $(ROOTFS_DIR)/dev ; fi
-	rm -rf $(wildcard $(ROOTFS_DIR) uInitrd)
-	
-.PHONY: rootfs-build
-rootfs-build: $(IMAGE_FILE)
+.PHONY: distclean-rootfs
+distclean-rootfs: clean-rootfs | has_root
+	rm -rf $(ROOTFS_DIR)
+
+# Don't depend on clean-rootfs here because we *only* want to
+# clean if we are debootstrapping
+.INTERMEDIATE: rootfs/debootstrap/debootstrap
+.PRECIOUS: rootfs/debootstrap/debootstrap
+rootfs/debootstrap/debootstrap: | has_root
+	if mountpoint -q rootfs/proc ; then umount rootfs/proc ; fi
+	if mountpoint -q rootfs/sys ; then umount rootfs/sys ; fi
+	if mountpoint -q rootfs/dev ; then umount rootfs/dev ; fi
+	rm -rf rootfs/*
+	mkdir -p rootfs
+	debootstrap --foreign --no-check-gpg --include=debian-archive-keyring --arch=$(DEBIAN_ARCH) $(DEBIAN_SUITE) rootfs $(DEBIAN_MIRROR)
+
+rootfs/var/log/bootstrap.log: rootfs/debootstrap/debootstrap | has_root rootfs/usr/bin/qemu-arm-static
+	LC_ALL=C chroot rootfs /debootstrap/debootstrap --second-stage
+
+rootfs/usr/bin/qemu-arm-static: $(shell which qemu-arm-static) | has_root rootfs/debootstrap/debootstrap
+	mkdir -p $(@D)
+	cp -a $$(which qemu-arm-static) $@
+
+rootfs/usr/sbin/policy-rc.d: | has_root rootfs/debootstrap/debootstrap
+	#TODO: this has to be reverted at some point!
+	mkdir -p $(@D)
+	printf "#!/bin/sh\nexit 101" > $@
+	chmod +x $@
+
+.PHONY: update-apt
+update-apt: | has_root rootfs/usr/bin/qemu-arm-static
+	sem --fg --id dpkg LC_ALL=C chroot rootfs apt-get update
+
+.PHONY: install-core-packages
+install-core-packages: update-apt | has_root rootfs/usr/bin/qemu-arm-static
+	sem --fg --id dpkg LC_ALL=C chroot rootfs apt-get install $(CORE_PACKAGES)
+
+.PHONY: install-extra-packages
+install-extra-packages: update-apt | has_root rootfs/usr/bin/qemu-arm-static
+	sem --fg --id dpkg LC_ALL=C chroot rootfs apt-get install $(ADDITIONAL_PACKAGES)
 
 .PHONY: install-user
-install-user: $(ROOTFS_DIR) has_root
+install-user: rootfs/var/log/bootstrap.log | has_root install-core-packages rootfs/usr/bin/qemu-arm-static
 	LC_ALL=C chroot $(ROOTFS_DIR) passwd --lock --delete root
-	LC_ALL=C chroot $(ROOTFS_DIR) apt-get install sudo
 	LC_ALL=C chroot $(ROOTFS_DIR) adduser --gecos "" --disabled-password $(USERNAME)
 	LC_ALL=C chroot $(ROOTFS_DIR) adduser $(USERNAME) sudo
 	echo $(USERNAME):$(PASSWORD) | LC_ALL=C chroot $(ROOTFS_DIR) chpasswd
 
 .PHONY: install-locale
-install-locale: $(ROOTFS_DIR) has_root
+install-locale: rootfs/var/log/bootstrap.log | has_root install-core-packages rootfs/usr/bin/qemu-arm-static
 	sed -s 's/^# *\(\($(subst $(space),\|,$(LOCALES))\).*\)/\1/' -i $(ROOTFS_DIR)/etc/locale.gen
-	LC_ALL=C chroot $(ROOTFS_DIR) dpkg-reconfigure -f noninteractive locales
+	sem --fg --id dpkg LC_ALL=C chroot $(ROOTFS_DIR) dpkg-reconfigure -f noninteractive locales
 
 .PHONY: install-timezone
-install-timezone: $(ROOTFS_DIR) has_root
+install-timezone: rootfs/var/log/bootstrap.log | has_root install-core-packages rootfs/usr/bin/qemu-arm-static
 	echo $(TIMEZONE) > $(ROOTFS_DIR)/etc/timezone
-	LC_ALL=C chroot $(ROOTFS_DIR) dpkg-reconfigure -f noninteractive tzdata
+	sem --fg --id dpkg LC_ALL=C chroot $(ROOTFS_DIR) dpkg-reconfigure -f noninteractive tzdata
 
-$(ROOTFS_DIR).base/.stamp: has_root
-	rm -rf "$(@D)"
+define _interfaces
+auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet dhcp
+endef
+$(call declare,rootfs/etc/network/interfaces,interfaces)
+
+.PHONY: rootfs/etc/network/interfaces
+rootfs/etc/network/interfaces: | has_root
 	mkdir -p $(@D)
-	debootstrap --foreign --no-check-gpg --include=ca-certificates,ssh,vim,locales,ntpdate,usbmount,initramfs-tools,debian-archive-keyring --arch=$(DEBIAN_ARCH) $(DEBIAN_SUITE) $(@D) $(DEBIAN_MIRROR)
-	cp $$(which qemu-arm-static) $(@D)/usr/bin
-	mkdir -p $(@D)/usr/sbin
-	#TODO: this has to be reverted at some point!
-	printf "#!/bin/sh\nexit 101" > $(@D)/usr/sbin/policy-rc.d
-	chmod +x $(@D)/usr/sbin/policy-rc.d
-	LC_ALL=C chroot $(@D) /debootstrap/debootstrap --second-stage
-	LC_ALL=C chroot $(@D) apt-get update
-	touch $@
+	echo $$interfaces > $@
 
-.PHONY: $(ROOTFS_DIR)
-$(ROOTFS_DIR): $(ROOTFS_DIR).base/.stamp has_root
-	cp -a $(ROOTFS_DIR).base -T $@
-	cd files/common && find . -type f ! -name '*~' -exec cp --preserve=mode,timestamps --parents \{\} ../../$@ \;
-	[ -d files/$(DEBIAN_SUITE) ] && cd files/$(DEBIAN_SUITE) && mkdir -p ../../$@/$(DEBIAN_SUITE) && find . -type f ! -name '*~' -exec cp --preserve=mode,timestamps --parents \{\} ../../$@ \;
-	mount -o bind /proc $@/proc
-	mount -o bind /sys $@/sys
-	mount -o bind /dev $@/dev
-	cp postinstall $@
-	if [ -d "postinst" ]; then cp -r postinst $@ ; fi
-	LC_ALL=C chroot $@ /bin/bash -c "/postinstall $(DEBIAN_SUITE) $(DEBIAN_MIRROR)"
-	for i in patches/*.patch ; do patch -p0 -d $@ < $$i ; done
-	if [ -d patches/$(DEBIAN_SUITE) ]; then for i in patches/$(DEBIAN_SUITE)/*.patch; do patch -p0 -d $@ < $$i ; done fi
-	umount $@/proc
-	umount $@/sys
-	umount $@/dev
-	rm $@/postinstall
-	rm -rf $@/postinst/
-	#rm $@/usr/bin/qemu-arm-static
-	touch $@
+#$(ROOTFS_DIR): $(ROOTFS_DIR).base/.stamp has_root
+#	cd files/common && find . -type f ! -name '*~' -exec cp --preserve=mode,timestamps --parents \{\} ../../$@ \;
+#	[ -d files/$(DEBIAN_SUITE) ] && cd files/$(DEBIAN_SUITE) && mkdir -p ../../$@/$(DEBIAN_SUITE) && find . -type f ! -name '*~' -exec cp --preserve=mode,timestamps --parents \{\} ../../$@ \;
+#	mount -o bind /proc $@/proc
+#	mount -o bind /sys $@/sys
+#	mount -o bind /dev $@/dev
+#	cp postinstall $@
+#	if [ -d "postinst" ]; then cp -r postinst $@ ; fi
+#	LC_ALL=C chroot $@ /bin/bash -c "/postinstall $(DEBIAN_SUITE) $(DEBIAN_MIRROR)"
+#	for i in patches/*.patch ; do patch -p0 -d $@ < $$i ; done
+#	if [ -d patches/$(DEBIAN_SUITE) ]; then for i in patches/$(DEBIAN_SUITE)/*.patch; do patch -p0 -d $@ < $$i ; done fi
+#	umount $@/proc
+#	umount $@/sys
+#	umount $@/dev
+#	rm $@/postinstall
+#	rm -rf $@/postinst/
+#	#rm $@/usr/bin/qemu-arm-static
+#	touch $@
 
 define _fk_db
 # To override fields include the Machine field and the fields you wish to
@@ -91,10 +123,9 @@ endef
 $(call declare,kernel-install,fk_db)
 
 .PHONY: kernel-install
-kernel-install: $(ROOTFS_DIR) $(call PACKAGES) has_root
+kernel-install: rootfs/var/log/bootstrap.log $(call PACKAGES) | has_root install-core-packages rootfs/usr/bin/qemu-arm-static
 	mount -o bind /dev $(ROOTFS_DIR)/dev
-	mount -o bind /dev $(ROOTFS_DIR)/proc
-	LC_ALL=C chroot $(ROOTFS_DIR) apt-get install --yes flash-kernel
+	mount -o bind /proc $(ROOTFS_DIR)/proc
 	mkdir -p $(ROOTFS_DIR)/etc/flash-kernel
 	mkdir -p $(ROOTFS_DIR)/boot/u-boot
 	echo $$fk_db > $(ROOTFS_DIR)/etc/flash-kernel/db
@@ -104,12 +135,16 @@ kernel-install: $(ROOTFS_DIR) $(call PACKAGES) has_root
 	umount $(ROOTFS_DIR)/proc
 	umount $(ROOTFS_DIR)/dev
 
-$(RAMDISK_FILE): $(ROOTFS_DIR)
-	mkimage -A arm -O linux -T ramdisk -C none -a 0 -e 0 -n uInitrd -d $(ROOTFS_DIR)/boot/initrd.img-* uInitrd
+#$(RAMDISK_FILE): $(ROOTFS_DIR)
+#	mkimage -A arm -O linux -T ramdisk -C none -a 0 -e 0 -n uInitrd -d $(ROOTFS_DIR)/boot/initrd.img-* uInitrd
 
-$(IMAGE_FILE): $(ROOTFS_DIR) kernel-install $(RAMDISK_FILE)
-	if test -f "$@.tmp"; then rm "$@.tmp" ; fi
-	./createimg $@.tmp $(BOOT_MB) $(ROOT_MB) $(BOOT_DIR) $(ROOTFS_DIR) $(UBOOT_BIN_DIR) $(RAMDISK_FILE) "$(ROOT_DEV)"
-	mv $@.tmp $@
-	touch $@
+#$(IMAGE_FILE): $(ROOTFS_DIR) kernel-install $(RAMDISK_FILE)
+#	if test -f "$@.tmp"; then rm "$@.tmp" ; fi
+#	./createimg $@.tmp $(BOOT_MB) $(ROOT_MB) $(BOOT_DIR) $(ROOTFS_DIR) $(UBOOT_BIN_DIR) $(RAMDISK_FILE) "$(ROOT_DEV)"
+#	mv $@.tmp $@
+#	touch $@
+
+
+
+rootfs-odroid: rootfs/var/log/bootstrap.log install-core-packages install-locale install-timezone install-extra-packages install-user install-kernel
 
