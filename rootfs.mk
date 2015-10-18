@@ -3,6 +3,11 @@ UBOOT_BIN_DIR := $(UBOOT_SRC)/sd_fuse
 ADDITIONAL_PACKAGES := ssh,vim,ntpdate,usbmount
 CORE_PACKAGES := ca-certificates,initramfs-tools,flash-kernel,locales,sudo
 
+debootstrap-stage1 := rootfs/debootstrap/debootstrap
+debootstrap-stage2 := rootfs/var/log/bootstrap.log
+qemu-arm-static := rootfs/usr/bin/qemu-arm-static
+rootfs-base := $(debootstrap-stage2) install-core-packages configure-locale configure-timezone
+
 # This rule works without the rootfs directory even existing
 .PHONY: clean-rootfs
 clean-rootfs: | has_root
@@ -17,9 +22,9 @@ distclean-rootfs: clean-rootfs | has_root
 
 # Don't depend on clean-rootfs here because we *only* want to
 # clean if we are debootstrapping
-.INTERMEDIATE: rootfs/debootstrap/debootstrap
-.PRECIOUS: rootfs/debootstrap/debootstrap
-rootfs/debootstrap/debootstrap: | has_root
+.INTERMEDIATE: $(debootstrap-stage1)
+.PRECIOUS: $(debootstrap-stage1)
+$(debootstrap-stage1): | has_root
 	if mountpoint -q rootfs/proc ; then umount rootfs/proc ; fi
 	if mountpoint -q rootfs/sys ; then umount rootfs/sys ; fi
 	if mountpoint -q rootfs/dev ; then umount rootfs/dev ; fi
@@ -27,45 +32,45 @@ rootfs/debootstrap/debootstrap: | has_root
 	mkdir -p rootfs
 	debootstrap --foreign --no-check-gpg --include=debian-archive-keyring --arch=$(DEBIAN_ARCH) $(DEBIAN_SUITE) rootfs $(DEBIAN_MIRROR)
 
-rootfs/var/log/bootstrap.log: rootfs/debootstrap/debootstrap | has_root rootfs/usr/bin/qemu-arm-static
+$(debootstrap-stage2): $(debootstrap-stage1) | has_root $(qemu-arm-static)
 	LC_ALL=C chroot rootfs /debootstrap/debootstrap --second-stage
 
-rootfs/usr/bin/qemu-arm-static: $(shell which qemu-arm-static) | has_root rootfs/debootstrap/debootstrap
+$(qemu-arm-static): $(shell which qemu-arm-static) | has_root $(debootstrap-stage1)
 	mkdir -p $(@D)
 	cp -a $$(which qemu-arm-static) $@
 
-rootfs/usr/sbin/policy-rc.d: | has_root rootfs/debootstrap/debootstrap
+rootfs/usr/sbin/policy-rc.d: | has_root $(debootstrap-stage1)
 	#TODO: this has to be reverted at some point!
 	mkdir -p $(@D)
 	printf "#!/bin/sh\nexit 101" > $@
 	chmod +x $@
 
 .PHONY: update-apt
-update-apt: | has_root rootfs/usr/bin/qemu-arm-static
+update-apt: | has_root $(qemu-arm-static)
 	sem --fg --id dpkg LC_ALL=C chroot rootfs apt-get update
 
 .PHONY: install-core-packages
-install-core-packages: update-apt | has_root rootfs/usr/bin/qemu-arm-static
+install-core-packages: update-apt | has_root $(qemu-arm-static)
 	sem --fg --id dpkg LC_ALL=C chroot rootfs apt-get install $(CORE_PACKAGES)
 
 .PHONY: install-extra-packages
-install-extra-packages: update-apt | has_root rootfs/usr/bin/qemu-arm-static
+install-extra-packages: update-apt | has_root $(qemu-arm-static)
 	sem --fg --id dpkg LC_ALL=C chroot rootfs apt-get install $(ADDITIONAL_PACKAGES)
 
 .PHONY: install-user
-install-user: rootfs/var/log/bootstrap.log | has_root install-core-packages rootfs/usr/bin/qemu-arm-static
+install-user: $(debootstrap-stage2) | has_root install-core-packages $(qemu-arm-static)
 	LC_ALL=C chroot $(ROOTFS_DIR) passwd --lock --delete root
 	LC_ALL=C chroot $(ROOTFS_DIR) adduser --gecos "" --disabled-password $(USERNAME)
 	LC_ALL=C chroot $(ROOTFS_DIR) adduser $(USERNAME) sudo
 	echo $(USERNAME):$(PASSWORD) | LC_ALL=C chroot $(ROOTFS_DIR) chpasswd
 
-.PHONY: install-locale
-install-locale: rootfs/var/log/bootstrap.log | has_root install-core-packages rootfs/usr/bin/qemu-arm-static
+.PHONY: configure-locale
+configure-locale: $(debootstrap-stage2) | has_root install-core-packages $(qemu-arm-static)
 	sed -s 's/^# *\(\($(subst $(space),\|,$(LOCALES))\).*\)/\1/' -i $(ROOTFS_DIR)/etc/locale.gen
 	sem --fg --id dpkg LC_ALL=C chroot $(ROOTFS_DIR) dpkg-reconfigure -f noninteractive locales
 
-.PHONY: install-timezone
-install-timezone: rootfs/var/log/bootstrap.log | has_root install-core-packages rootfs/usr/bin/qemu-arm-static
+.PHONY: configure-timezone
+configure-timezone: $(debootstrap-stage2) | has_root install-core-packages $(qemu-arm-static)
 	echo $(TIMEZONE) > $(ROOTFS_DIR)/etc/timezone
 	sem --fg --id dpkg LC_ALL=C chroot $(ROOTFS_DIR) dpkg-reconfigure -f noninteractive tzdata
 
@@ -123,7 +128,7 @@ endef
 $(call declare,kernel-install,fk_db)
 
 .PHONY: kernel-install
-kernel-install: rootfs/var/log/bootstrap.log $(call PACKAGES) | has_root install-core-packages rootfs/usr/bin/qemu-arm-static
+kernel-install: $(debootstrap-stage2) $(call PACKAGES) | has_root install-core-packages $(qemu-arm-static)
 	mount -o bind /dev $(ROOTFS_DIR)/dev
 	mount -o bind /proc $(ROOTFS_DIR)/proc
 	mkdir -p $(ROOTFS_DIR)/etc/flash-kernel
@@ -146,5 +151,5 @@ kernel-install: rootfs/var/log/bootstrap.log $(call PACKAGES) | has_root install
 
 
 
-rootfs-odroid: rootfs/var/log/bootstrap.log install-core-packages install-locale install-timezone install-extra-packages install-user install-kernel
+rootfs-odroid: $(rootfs-base) install-extra-packages install-user install-kernel
 
