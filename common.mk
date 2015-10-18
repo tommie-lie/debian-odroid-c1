@@ -7,6 +7,10 @@ define newline
 endef
 declare = $1: export $2 := $(subst $(newline),\n,$(_$2))
 
+.PHONY: has_root
+has_root:
+	$(if $(filter-out 0,$(shell id -u)), $(error This command has to be run as root))
+
 
 DEBIAN_SUITE ?= jessie
 DEBIAN_MIRROR ?= http://http.debian.net/debian/

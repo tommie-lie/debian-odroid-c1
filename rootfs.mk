@@ -5,11 +5,11 @@ roots-clean: delete-rootfs
 	rm -rf $(wildcard $(IMAGE_FILE) $(IMAGE_FILE).tmp)
 
 .PHONY: distclean
-rootfs-distclean: delete-rootfs
+rootfs-distclean: delete-rootfs has_root
 	rm -rf $(wildcard $(ROOTFS_DIR).base $(ROOTFS_DIR).base.tmp)
 
 .PHONY: delete-rootfs
-delete-rootfs:
+delete-rootfs: has_root
 	if mountpoint -q $(ROOTFS_DIR)/proc ; then umount $(ROOTFS_DIR)/proc ; fi
 	if mountpoint -q $(ROOTFS_DIR)/sys ; then umount $(ROOTFS_DIR)/sys ; fi
 	if mountpoint -q $(ROOTFS_DIR)/dev ; then umount $(ROOTFS_DIR)/dev ; fi
@@ -19,7 +19,7 @@ delete-rootfs:
 rootfs-build: $(IMAGE_FILE)
 
 .PHONY: install-user
-install-user: $(ROOTFS_DIR)
+install-user: $(ROOTFS_DIR) has_root
 	LC_ALL=C chroot $(ROOTFS_DIR) passwd --lock --delete root
 	LC_ALL=C chroot $(ROOTFS_DIR) apt-get install sudo
 	LC_ALL=C chroot $(ROOTFS_DIR) adduser --gecos "" --disabled-password $(USERNAME)
@@ -27,16 +27,16 @@ install-user: $(ROOTFS_DIR)
 	echo $(USERNAME):$(PASSWORD) | LC_ALL=C chroot $(ROOTFS_DIR) chpasswd
 
 .PHONY: install-locale
-install-locale: $(ROOTFS_DIR)
+install-locale: $(ROOTFS_DIR) has_root
 	sed -s 's/^# *\(\($(subst $(space),\|,$(LOCALES))\).*\)/\1/' -i $(ROOTFS_DIR)/etc/locale.gen
 	LC_ALL=C chroot $(ROOTFS_DIR) dpkg-reconfigure -f noninteractive locales
 
 .PHONY: install-timezone
-install-timezone: $(ROOTFS_DIR)
+install-timezone: $(ROOTFS_DIR) has_root
 	echo $(TIMEZONE) > $(ROOTFS_DIR)/etc/timezone
 	LC_ALL=C chroot $(ROOTFS_DIR) dpkg-reconfigure -f noninteractive tzdata
 
-$(ROOTFS_DIR).base/.stamp:
+$(ROOTFS_DIR).base/.stamp: has_root
 	rm -rf "$(@D)"
 	mkdir -p $(@D)
 	debootstrap --foreign --no-check-gpg --include=ca-certificates,ssh,vim,locales,ntpdate,usbmount,initramfs-tools,debian-archive-keyring --arch=$(DEBIAN_ARCH) $(DEBIAN_SUITE) $(@D) $(DEBIAN_MIRROR)
@@ -50,7 +50,7 @@ $(ROOTFS_DIR).base/.stamp:
 	touch $@
 
 .PHONY: $(ROOTFS_DIR)
-$(ROOTFS_DIR): $(ROOTFS_DIR).base/.stamp
+$(ROOTFS_DIR): $(ROOTFS_DIR).base/.stamp has_root
 	cp -a $(ROOTFS_DIR).base -T $@
 	cd files/common && find . -type f ! -name '*~' -exec cp --preserve=mode,timestamps --parents \{\} ../../$@ \;
 	[ -d files/$(DEBIAN_SUITE) ] && cd files/$(DEBIAN_SUITE) && mkdir -p ../../$@/$(DEBIAN_SUITE) && find . -type f ! -name '*~' -exec cp --preserve=mode,timestamps --parents \{\} ../../$@ \;
@@ -91,7 +91,7 @@ endef
 $(call declare,kernel-install,fk_db)
 
 .PHONY: kernel-install
-kernel-install: $(ROOTFS_DIR) $(call PACKAGES)
+kernel-install: $(ROOTFS_DIR) $(call PACKAGES) has_root
 	mount -o bind /dev $(ROOTFS_DIR)/dev
 	mount -o bind /dev $(ROOTFS_DIR)/proc
 	LC_ALL=C chroot $(ROOTFS_DIR) apt-get install --yes flash-kernel
