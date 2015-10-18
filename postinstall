@@ -20,12 +20,6 @@ insserv usbmount-start
 insserv framebuffer-start
 insserv hostname-init
 
-# Prevent apt-get from starting services
-echo "#!/bin/sh
-exit 101
-" > /usr/sbin/policy-rc.d
-chmod +x /usr/sbin/policy-rc.d
-
 # Run custom install scripts
 if [ -d /postinst ]; then
 	find /postinst -maxdepth 1 -type f -executable -not -name "*~" -exec {} \;

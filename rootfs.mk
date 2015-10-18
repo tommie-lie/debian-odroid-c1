@@ -41,6 +41,10 @@ $(ROOTFS_DIR).base/.stamp:
 	mkdir -p $(@D)
 	debootstrap --foreign --no-check-gpg --include=ca-certificates,ssh,vim,locales,ntpdate,usbmount,initramfs-tools,debian-archive-keyring --arch=$(DEBIAN_ARCH) $(DEBIAN_SUITE) $(@D) $(DEBIAN_MIRROR)
 	cp $$(which qemu-arm-static) $(@D)/usr/bin
+	mkdir -p $(@D)/usr/sbin
+	#TODO: this has to be reverted at some point!
+	printf "#!/bin/sh\nexit 101" > $(@D)/usr/sbin/policy-rc.d
+	chmod +x $(@D)/usr/sbin/policy-rc.d
 	LC_ALL=C chroot $(@D) /debootstrap/debootstrap --second-stage
 	LC_ALL=C chroot $(@D) apt-get update
 	touch $@
