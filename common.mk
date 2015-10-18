@@ -1,3 +1,6 @@
+comma := ,
+empty :=
+space := $(empty) $(empty)
 define newline
 
 
@@ -35,3 +38,5 @@ LINUX_BRANCH := odroidc-3.10.y
 LINUX_SRC := linux
 
 TIMEZONE ?= Etc/UTC
+LOCALES ?= en_US.UTF-8
+

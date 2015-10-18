@@ -18,6 +18,11 @@ delete-rootfs:
 .PHONY: rootfs-build
 rootfs-build: $(IMAGE_FILE)
 
+.PHONY: install-locale
+install-locale: $(ROOTFS_DIR)
+	sed -s 's/^# *\(\($(subst $(space),\|,$(LOCALES))\).*\)/\1/' -i $(ROOTFS_DIR)/etc/locale.gen
+	chroot $(ROOTFS_DIR) dpkg-reconfigure -f noninteractive locales
+
 .PHONY: install-timezone
 install-timezone: $(ROOTFS_DIR)
 	echo $(TIMEZONE) > $(ROOTFS_DIR)/etc/timezone
