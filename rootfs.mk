@@ -21,20 +21,20 @@ rootfs-build: $(IMAGE_FILE)
 .PHONY: install-locale
 install-locale: $(ROOTFS_DIR)
 	sed -s 's/^# *\(\($(subst $(space),\|,$(LOCALES))\).*\)/\1/' -i $(ROOTFS_DIR)/etc/locale.gen
-	chroot $(ROOTFS_DIR) dpkg-reconfigure -f noninteractive locales
+	LC_ALL=C chroot $(ROOTFS_DIR) dpkg-reconfigure -f noninteractive locales
 
 .PHONY: install-timezone
 install-timezone: $(ROOTFS_DIR)
 	echo $(TIMEZONE) > $(ROOTFS_DIR)/etc/timezone
-	chroot $(ROOTFS_DIR) dpkg-reconfigure -f noninteractive tzdata
+	LC_ALL=C chroot $(ROOTFS_DIR) dpkg-reconfigure -f noninteractive tzdata
 
 $(ROOTFS_DIR).base/.stamp:
 	rm -rf "$(@D)"
 	mkdir -p $(@D)
 	debootstrap --foreign --no-check-gpg --include=ca-certificates,ssh,vim,locales,ntpdate,usbmount,initramfs-tools,debian-archive-keyring --arch=$(DEBIAN_ARCH) $(DEBIAN_SUITE) $(@D) $(DEBIAN_MIRROR)
 	cp $$(which qemu-arm-static) $(@D)/usr/bin
-	chroot $(@D) /debootstrap/debootstrap --second-stage
-	chroot $(@D) apt-get update
+	LC_ALL=C chroot $(@D) /debootstrap/debootstrap --second-stage
+	LC_ALL=C chroot $(@D) apt-get update
 	touch $@
 
 .PHONY: $(ROOTFS_DIR)
@@ -47,7 +47,7 @@ $(ROOTFS_DIR): $(ROOTFS_DIR).base/.stamp
 	mount -o bind /dev $@/dev
 	cp postinstall $@
 	if [ -d "postinst" ]; then cp -r postinst $@ ; fi
-	chroot $@ /bin/bash -c "/postinstall $(DEBIAN_SUITE) $(DEBIAN_MIRROR)"
+	LC_ALL=C chroot $@ /bin/bash -c "/postinstall $(DEBIAN_SUITE) $(DEBIAN_MIRROR)"
 	for i in patches/*.patch ; do patch -p0 -d $@ < $$i ; done
 	if [ -d patches/$(DEBIAN_SUITE) ]; then for i in patches/$(DEBIAN_SUITE)/*.patch; do patch -p0 -d $@ < $$i ; done fi
 	umount $@/proc
@@ -82,13 +82,13 @@ $(call declare,kernel-install,fk_db)
 kernel-install: $(ROOTFS_DIR) $(call PACKAGES)
 	mount -o bind /dev $(ROOTFS_DIR)/dev
 	mount -o bind /dev $(ROOTFS_DIR)/proc
-	chroot $(ROOTFS_DIR) apt-get install --yes flash-kernel
+	LC_ALL=C chroot $(ROOTFS_DIR) apt-get install --yes flash-kernel
 	mkdir -p $(ROOTFS_DIR)/etc/flash-kernel
 	mkdir -p $(ROOTFS_DIR)/boot/u-boot
 	echo $$fk_db > $(ROOTFS_DIR)/etc/flash-kernel/db
 	echo "Hardkernel Odroid C1" > $(ROOTFS_DIR)/etc/flash-kernel/machine
 	cp $(call PACKAGES) $(ROOTFS_DIR)/tmp
-	chroot $(ROOTFS_DIR) dpkg -i $(addprefix /tmp/,$(call PACKAGES))
+	LC_ALL=C chroot $(ROOTFS_DIR) dpkg -i $(addprefix /tmp/,$(call PACKAGES))
 	umount $(ROOTFS_DIR)/proc
 	umount $(ROOTFS_DIR)/dev
 
