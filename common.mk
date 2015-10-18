@@ -34,3 +34,4 @@ LINUX_REPO := https://github.com/hardkernel/linux.git
 LINUX_BRANCH := odroidc-3.10.y
 LINUX_SRC := linux
 
+TIMEZONE ?= Etc/UTC

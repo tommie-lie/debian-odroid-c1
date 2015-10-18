@@ -18,6 +18,11 @@ delete-rootfs:
 .PHONY: rootfs-build
 rootfs-build: $(IMAGE_FILE)
 
+.PHONY: install-timezone
+install-timezone: $(ROOTFS_DIR)
+	echo $(TIMEZONE) > $(ROOTFS_DIR)/etc/timezone
+	chroot $(ROOTFS_DIR) dpkg-reconfigure -f noninteractive tzdata
+
 $(ROOTFS_DIR).base/.stamp:
 	rm -rf "$(@D)"
 	mkdir -p $(@D)
