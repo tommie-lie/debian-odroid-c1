@@ -40,3 +40,5 @@ LINUX_SRC := linux
 TIMEZONE ?= Etc/UTC
 LOCALES ?= en_US.UTF-8
 
+USERNAME := odroid
+PASSWORD := odroid

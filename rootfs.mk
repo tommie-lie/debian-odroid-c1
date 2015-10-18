@@ -18,6 +18,14 @@ delete-rootfs:
 .PHONY: rootfs-build
 rootfs-build: $(IMAGE_FILE)
 
+.PHONY: install-user
+install-user: $(ROOTFS_DIR)
+	LC_ALL=C chroot $(ROOTFS_DIR) passwd --lock --delete root
+	LC_ALL=C chroot $(ROOTFS_DIR) apt-get install sudo
+	LC_ALL=C chroot $(ROOTFS_DIR) adduser --gecos "" --disabled-password $(USERNAME)
+	LC_ALL=C chroot $(ROOTFS_DIR) adduser $(USERNAME) sudo
+	echo $(USERNAME):$(PASSWORD) | LC_ALL=C chroot $(ROOTFS_DIR) chpasswd
+
 .PHONY: install-locale
 install-locale: $(ROOTFS_DIR)
 	sed -s 's/^# *\(\($(subst $(space),\|,$(LOCALES))\).*\)/\1/' -i $(ROOTFS_DIR)/etc/locale.gen

@@ -16,9 +16,6 @@ DIST_URL=$2
 
 echo "Running postinstall script..."
 
-# Set root password
-echo "root:odroid" | chpasswd
-
 # Initialize /etc/apt/sources.list
 echo "deb $DIST_URL $DIST main contrib non-free" > /etc/apt/sources.list
 echo "deb-src $DIST_URL $DIST main contrib non-free" >> /etc/apt/sources.list
