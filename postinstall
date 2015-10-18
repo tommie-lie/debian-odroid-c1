@@ -16,13 +16,6 @@ DIST_URL=$2
 
 echo "Running postinstall script..."
 
-# Initialize /etc/apt/sources.list
-echo "deb $DIST_URL $DIST main contrib non-free" > /etc/apt/sources.list
-echo "deb-src $DIST_URL $DIST main contrib non-free" >> /etc/apt/sources.list
-
-# Update apt
-apt-get update
-
 insserv usbmount-start
 insserv framebuffer-start
 insserv hostname-init
