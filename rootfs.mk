@@ -66,7 +66,7 @@ Boot-Kernel-Path: /boot/u-boot/uImage
 Boot-Initrd-Path: /boot/u-boot/uInitrd
 Boot-DTB-Path: /boot/u-boot/meson8b_odroidc.dtb
 endef
-$(call declare,kernel-install,_fk_db)
+$(call declare,kernel-install,fk_db)
 
 .PHONY: kernel-install
 kernel-install: $(ROOTFS_DIR) $(call PACKAGES)
