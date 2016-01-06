@@ -46,16 +46,19 @@ rootfs/usr/sbin/policy-rc.d: | has_root $(debootstrap-stage1)
 	chmod +x $@
 
 .PHONY: update-apt
-update-apt: | has_root $(qemu-arm-static)
-	sem --fg --id dpkg LC_ALL=C chroot rootfs apt-get update
+$(call mutex,dpkg_update-apt)
+dpkg_update-apt: | has_root $(qemu-arm-static)
+	LC_ALL=C chroot rootfs apt-get update
 
 .PHONY: install-core-packages
-install-core-packages: update-apt | has_root $(qemu-arm-static)
-	sem --fg --id dpkg LC_ALL=C chroot rootfs apt-get install $(CORE_PACKAGES)
+$(call mutex,dpkg_install-core-packages)
+dpkg_install-core-packages: update-apt | has_root $(qemu-arm-static)
+	LC_ALL=C chroot rootfs apt-get install $(CORE_PACKAGES)
 
 .PHONY: install-extra-packages
-install-extra-packages: update-apt | has_root $(qemu-arm-static)
-	sem --fg --id dpkg LC_ALL=C chroot rootfs apt-get install $(ADDITIONAL_PACKAGES)
+$(call mutex,dpkg_install-extra-packages)
+dpkg_install-extra-packages: update-apt | has_root $(qemu-arm-static)
+	LC_ALL=C chroot rootfs apt-get install $(ADDITIONAL_PACKAGES)
 
 .PHONY: install-user
 install-user: $(debootstrap-stage2) | has_root install-core-packages $(qemu-arm-static)
@@ -65,14 +68,16 @@ install-user: $(debootstrap-stage2) | has_root install-core-packages $(qemu-arm-
 	echo $(USERNAME):$(PASSWORD) | LC_ALL=C chroot $(ROOTFS_DIR) chpasswd
 
 .PHONY: configure-locale
-configure-locale: $(debootstrap-stage2) | has_root install-core-packages $(qemu-arm-static)
+$(call mutex,dpkg_configure-locale)
+dpkg_configure-locale: $(debootstrap-stage2) | has_root install-core-packages $(qemu-arm-static)
 	sed -s 's/^# *\(\($(subst $(space),\|,$(LOCALES))\).*\)/\1/' -i $(ROOTFS_DIR)/etc/locale.gen
-	sem --fg --id dpkg LC_ALL=C chroot $(ROOTFS_DIR) dpkg-reconfigure -f noninteractive locales
+	LC_ALL=C chroot $(ROOTFS_DIR) dpkg-reconfigure -f noninteractive locales
 
 .PHONY: configure-timezone
-configure-timezone: $(debootstrap-stage2) | has_root install-core-packages $(qemu-arm-static)
+$(call mutex,dpkg_configure-timezone)
+dpkg_configure-timezone: $(debootstrap-stage2) | has_root install-core-packages $(qemu-arm-static)
 	echo $(TIMEZONE) > $(ROOTFS_DIR)/etc/timezone
-	sem --fg --id dpkg LC_ALL=C chroot $(ROOTFS_DIR) dpkg-reconfigure -f noninteractive tzdata
+	LC_ALL=C chroot $(ROOTFS_DIR) dpkg-reconfigure -f noninteractive tzdata
 
 define _interfaces
 auto lo

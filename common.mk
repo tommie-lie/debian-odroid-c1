@@ -7,6 +7,15 @@ define newline
 endef
 declare = $1: export $2 := $(subst $(newline),\n,$(_$2))
 
+define mutex
+$(eval
+$(shell echo $1 | sed 's/[^_]*_//'): mutex = $(subst _$(shell echo $1 | sed 's/[^_]*_//'),,$1)
+$(shell echo $1 | sed 's/[^_]*_//'):
+	flock $${mutex}.lock $(MAKE) $${mutex}_$$@
+	@rm -f $${mutex}.lock
+)
+endef
+
 .PHONY: has_root
 has_root:
 	$(if $(filter-out 0,$(shell id -u)), $(error This command has to be run as root))
